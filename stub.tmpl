@@ -1,0 +1,6 @@
+type {{ Title .Name }} struct {
+    {{ range $k, $v := .Meta }}
+        {{- Title $k}}  {{$v}} `json:"{{ $k }}"`
+    {{ end }}
+}
+
