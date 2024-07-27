@@ -128,7 +128,7 @@ func Json2StructDir(jsondir string, dir string, options *Options) error {
 			// convert some/path/name.json => new/path/name.json
 			conv1 := strings.Replace(path, jsondir, dir, 1)
 			// convert new/path/name.json => new/path/name.go
-			conv2 := strings.TrimRight(conv1, ".json") + ".go"
+			conv2 := strings.TrimSuffix(conv1, ".json") + ".go"
 			return Json2StructFile(path, conv2, options)
 		}
 		return nil
@@ -143,7 +143,7 @@ func Json2StructFile(jsonfile string, gofile string, options *Options) error {
 		options = &Options{}
 	}
 	if options.Type == "" {
-		name = strings.TrimRight(name, filepath.Ext(name))
+		name = strings.TrimSuffix(name, filepath.Ext(name))
 		options.Type = Title(name)
 	}
 	if options.Package == "" {
