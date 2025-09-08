@@ -10,7 +10,7 @@
     "first": {
         "availBal": "4834.317093622894",
         "ccy": "USDT",
-        "crossLiab": "0"
+        "cross_liab": "0"
     },
     "numbers": [
         1,

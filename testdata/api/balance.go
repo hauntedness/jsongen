@@ -9,7 +9,7 @@ type Details struct {
 type First struct {
 	AvailBal  string `json:"availBal"`
 	Ccy       string `json:"ccy"`
-	CrossLiab string `json:"crossLiab"`
+	CrossLiab string `json:"cross_liab"`
 }
 
 type Balance struct {

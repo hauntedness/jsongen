@@ -19,6 +19,7 @@ type StructGen struct {
 	Data     map[string]any
 	Meta     map[string]string
 	Children []*StructGen
+	Template *template.Template
 }
 
 func (s *StructGen) Json2Struct(jsondata []byte, writer io.Writer, options *Options) error {
@@ -53,7 +54,7 @@ func (s *StructGen) loadMeta(key string, val any) string {
 	case string:
 		return "string"
 	case map[string]any:
-		child := &StructGen{Name: Title(key), Data: underlying, Meta: map[string]string{}}
+		child := &StructGen{Name: Title(key), Data: underlying, Meta: map[string]string{}, Template: s.Template}
 		for k, v := range child.Data {
 			child.Meta[k] = child.loadMeta(k, v)
 		}
@@ -75,17 +76,6 @@ var _ embed.FS
 //go:embed stub.tmpl
 var templateText string
 
-var tmpl = func() *template.Template {
-	funcs := template.FuncMap{
-		"Title": Title,
-	}
-	temp, err := template.New("").Funcs(funcs).Parse(templateText)
-	if err != nil {
-		panic(err)
-	}
-	return temp
-}()
-
 func (s *StructGen) render(w io.Writer) error {
 	for _, n := range s.Children {
 		err := n.render(w)
@@ -93,17 +83,26 @@ func (s *StructGen) render(w io.Writer) error {
 			return err
 		}
 	}
-	return tmpl.Execute(w, s)
+	return s.Template.Execute(w, s)
 }
 
 func Title(name string) string {
-	return strings.ToUpper(name)[0:1] + name[1:]
+	var words []string
+	for _, v := range strings.Split(name, "_") {
+		if len(v) == 1 {
+			words = append(words, strings.ToUpper(v))
+		} else if len(v) > 1 {
+			words = append(words, strings.ToUpper(v)[0:1]+v[1:])
+		}
+	}
+	return strings.Join(words, "")
 }
 
 type Options struct {
 	Package   string
 	Type      string
 	Unmarshal func(data []byte, v any) error
+	Rename    func(name string) string
 }
 
 // convert json to struct and write to writer
@@ -111,7 +110,20 @@ func Json2Struct(jsontext []byte, writer io.Writer, options *Options) error {
 	if options == nil || options.Package == "" || options.Type == "" {
 		return fmt.Errorf("missing package or type options")
 	}
-	sg := &StructGen{Meta: map[string]string{}, Name: options.Type}
+	if options.Rename == nil {
+		options.Rename = Title
+	}
+	tmpl, err := template.New("").Funcs(template.FuncMap{
+		"Rename": options.Rename,
+	}).Parse(templateText)
+	if err != nil {
+		return err
+	}
+	sg := &StructGen{
+		Meta:     map[string]string{},
+		Name:     options.Type,
+		Template: tmpl,
+	}
 	return sg.Json2Struct(jsontext, writer, options)
 }
 
