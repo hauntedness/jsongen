@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"unicode"
 )
 
 type StructGen struct {
@@ -30,7 +31,7 @@ func (s *StructGen) Json2Struct(jsondata []byte, writer io.Writer, options *Opti
 		return err
 	}
 	for k, v := range s.Data {
-		s.Meta[k] = s.loadMeta(k, v)
+		s.Meta[k] = s.loadMeta(k, v, options)
 	}
 	buf := &bytes.Buffer{}
 	buf.WriteString("package " + options.Package + "\n\n")
@@ -45,7 +46,7 @@ func (s *StructGen) Json2Struct(jsondata []byte, writer io.Writer, options *Opti
 	return err
 }
 
-func (s *StructGen) loadMeta(key string, val any) string {
+func (s *StructGen) loadMeta(key string, val any, options *Options) string {
 	switch underlying := val.(type) {
 	case bool:
 		return "bool"
@@ -54,17 +55,19 @@ func (s *StructGen) loadMeta(key string, val any) string {
 	case string:
 		return "string"
 	case map[string]any:
-		child := &StructGen{Name: Title(key), Data: underlying, Meta: map[string]string{}, Template: s.Template}
+		typeName := options.Rename(key, nil)
+		child := &StructGen{Name: typeName, Data: underlying, Meta: map[string]string{}, Template: s.Template}
 		for k, v := range child.Data {
-			child.Meta[k] = child.loadMeta(k, v)
+			child.Meta[k] = child.loadMeta(k, v, options)
 		}
 		s.Children = append(s.Children, child)
-		return Title(key)
+		return typeName
 	case []any:
 		if len(underlying) == 0 {
 			return "[]any"
 		} else {
-			return "[]" + s.loadMeta(key, underlying[0])
+			keyp := options.Rename(key, map[string]any{"plural-slice": true})
+			return "[]" + s.loadMeta(keyp, underlying[0], options)
 		}
 	default:
 		return "any"
@@ -86,7 +89,17 @@ func (s *StructGen) render(w io.Writer) error {
 	return s.Template.Execute(w, s)
 }
 
-func Title(name string) string {
+func NormalizeName(name string) string {
+	rename := strings.Builder{}
+	for _, v := range []rune(name) {
+		if (v <= unicode.MaxASCII && unicode.IsLetter(v)) || unicode.IsNumber(v) || v == '_' {
+			rename.WriteRune(v)
+		}
+	}
+	return rename.String()
+}
+
+func Title(name string, ctx map[string]any) string {
 	var words []string
 	for _, v := range strings.Split(name, "_") {
 		if len(v) == 1 {
@@ -102,7 +115,7 @@ type Options struct {
 	Package   string
 	Type      string
 	Unmarshal func(data []byte, v any) error
-	Rename    func(name string) string
+	Rename    func(name string, ctx map[string]any) string
 }
 
 // convert json to struct and write to writer
@@ -156,7 +169,7 @@ func Json2StructFile(jsonfile string, gofile string, options *Options) error {
 	}
 	if options.Type == "" {
 		name = strings.TrimSuffix(name, filepath.Ext(name))
-		options.Type = Title(name)
+		options.Type = NormalizeName(name)
 	}
 	if options.Package == "" {
 		base := filepath.Base(dir)
@@ -166,9 +179,9 @@ func Json2StructFile(jsonfile string, gofile string, options *Options) error {
 				return fmt.Errorf("Get absolute path: %s. %w", dir, err)
 			}
 			dir = abs
-			options.Package = filepath.Base(dir)
+			options.Package = NormalizeName(filepath.Base(dir))
 		} else {
-			options.Package = base
+			options.Package = NormalizeName(base)
 		}
 	}
 	err := os.MkdirAll(dir, 0o666)

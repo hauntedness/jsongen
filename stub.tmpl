@@ -1,6 +1,6 @@
-type {{ Rename .Name }} struct {
+type {{ Rename .Name nil }} struct {
     {{ range $k, $v := .Meta }}
-        {{- Rename $k}}  {{$v}} `json:"{{ $k }}"`
+        {{- Rename $k nil }}  {{$v}} `json:"{{ $k }}"`
     {{ end }}
 }
 
