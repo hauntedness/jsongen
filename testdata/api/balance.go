@@ -4,18 +4,18 @@ import (
 	"encoding/json"
 )
 
-var _ = json.Number
-
-type Details struct {
-	AvailEq    string `json:"availEq"`
-	BorrowFroz string `json:"borrowFroz"`
-	CashBal    string `json:"cashBal"`
-}
+var _ json.Number
 
 type First struct {
 	AvailBal  string `json:"availBal"`
 	Ccy       string `json:"ccy"`
 	CrossLiab string `json:"cross_liab"`
+}
+
+type Details struct {
+	AvailEq    string `json:"availEq"`
+	BorrowFroz string `json:"borrowFroz"`
+	CashBal    string `json:"cashBal"`
 }
 
 type Balance struct {
