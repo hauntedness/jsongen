@@ -50,7 +50,7 @@ func (s *StructGen) Json2Struct(jsondata []byte, writer io.Writer, options *Opti
 		buf.WriteString("\n")
 		buf.WriteString(`)`)
 		buf.WriteString("\n\n")
-		buf.WriteString("var _ = json.Number")
+		buf.WriteString("var _ json.Number")
 		buf.WriteString("\n\n")
 	}
 
