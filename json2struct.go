@@ -25,7 +25,15 @@ type StructGen struct {
 
 func (s *StructGen) Json2Struct(jsondata []byte, writer io.Writer, options *Options) error {
 	if options.Unmarshal == nil {
-		options.Unmarshal = json.Unmarshal
+		if options.UseJsonNumber {
+			options.Unmarshal = func(data []byte, v any) error {
+				dec := json.NewDecoder(bytes.NewReader(data))
+				dec.UseNumber()
+				return dec.Decode(v)
+			}
+		} else {
+			options.Unmarshal = json.Unmarshal
+		}
 	}
 	if err := options.Unmarshal(jsondata, &s.Data); err != nil {
 		return err
@@ -35,6 +43,17 @@ func (s *StructGen) Json2Struct(jsondata []byte, writer io.Writer, options *Opti
 	}
 	buf := &bytes.Buffer{}
 	buf.WriteString("package " + options.Package + "\n\n")
+	if options.UseJsonNumber {
+		buf.WriteString(`import (`)
+		buf.WriteString("\n")
+		buf.WriteString(`"encoding/json"`)
+		buf.WriteString("\n")
+		buf.WriteString(`)`)
+		buf.WriteString("\n\n")
+		buf.WriteString("var _ = json.Number")
+		buf.WriteString("\n\n")
+	}
+
 	if err := s.render(buf); err != nil {
 		return err
 	}
@@ -54,6 +73,8 @@ func (s *StructGen) loadMeta(key string, val any, options *Options) string {
 		return "float64"
 	case string:
 		return "string"
+	case json.Number:
+		return "json.Number"
 	case map[string]any:
 		typeName := options.Rename(key, nil)
 		child := &StructGen{Name: typeName, Data: underlying, Meta: map[string]string{}, Template: s.Template}
@@ -112,10 +133,11 @@ func Title(name string, ctx map[string]any) string {
 }
 
 type Options struct {
-	Package   string
-	Type      string
-	Unmarshal func(data []byte, v any) error
-	Rename    func(name string, ctx map[string]any) string
+	Package       string
+	Type          string
+	UseJsonNumber bool
+	Unmarshal     func(data []byte, v any) error
+	Rename        func(name string, ctx map[string]any) string
 }
 
 // convert json to struct and write to writer
