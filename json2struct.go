@@ -206,9 +206,11 @@ func Json2StructFile(jsonfile string, gofile string, options *Options) error {
 			options.Package = NormalizeName(base)
 		}
 	}
-	err := os.MkdirAll(dir, 0o666)
-	if err != nil {
-		return fmt.Errorf("Make dir: %s. %w", dir, err)
+	if dir != "." && dir != "" {
+		err := os.MkdirAll(dir, 0o666)
+		if err != nil {
+			return fmt.Errorf("Make dir: %s. %w", dir, err)
+		}
 	}
 	file, err := os.Create(gofile)
 	if err != nil {
